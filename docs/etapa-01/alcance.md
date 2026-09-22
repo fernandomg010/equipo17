@@ -1,4 +1,5 @@
-Alcance del sistema 
+Alcance del sistema \
+
  El sistema gestionará el ciclo completo de ventas, el registro de clientes y el control de
 inventario de la planta. Abarca la administración del stock diferenciado entre garrafas llenas
 y envases vacíos, el registro de clientes con sus direcciones y zonas de entrega, y el
