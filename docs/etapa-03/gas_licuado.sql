@@ -1,3 +1,8 @@
+CREATE DATABASE gas_licuado;
+GO
+USE gas_licuado;
+GO
+
 -- 1. Tabla TIPO_CLIENTE
 CREATE TABLE TIPO_CLIENTE (
     Id_tipo_cliente INT IDENTITY(1,1) PRIMARY KEY,
