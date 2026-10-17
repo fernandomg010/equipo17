@@ -1,3 +1,6 @@
+USE gas_licuado;
+GO
+
 SELECT
     P.Id_producto,
     P.Descripcion AS Producto,
@@ -11,7 +14,10 @@ SELECT
 FROM PRODUCTO P
 INNER JOIN DETALLE_VENTA D
     ON P.Id_producto = D.Id_producto
+INNER JOIN VENTA V
+    ON D.Id_venta = V.Id_venta
 GROUP BY
     P.Id_producto,
     P.Descripcion
+HAVING SUM(D.Cantidad * D.Precio_unitario) > 50000
 ORDER BY Facturacion_total DESC;
