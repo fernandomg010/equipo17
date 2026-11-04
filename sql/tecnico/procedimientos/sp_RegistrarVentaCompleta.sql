@@ -14,6 +14,7 @@ CREATE PROCEDURE dbo.sp_RegistrarVentaCompleta
 AS
 BEGIN
     SET NOCOUNT ON;
+	SET XACT_ABORT ON;
 
     DECLARE @StockActual INT;
     DECLARE @PrecioLista DECIMAL(10,2);
@@ -22,8 +23,37 @@ BEGIN
     DECLARE @Subtotal DECIMAL(10,2);
     DECLARE @Id_venta INT;
 
+-- Validación que evita que cantidad sea nulo, 0 o negativa.
+IF @Cantidad IS NULL OR @Cantidad <= 0
+BEGIN
+    RAISERROR('La cantidad debe ser mayor que cero.', 16, 1);
+    RETURN;
+END;
+
+-- Validación de existencia del cliente.
+IF NOT EXISTS (
+    SELECT 1
+    FROM CLIENTE
+    WHERE Id_cliente = @Id_cliente
+)
+BEGIN
+    RAISERROR('El cliente no existe.', 16, 1);
+    RETURN;
+END;
+
+-- Validación de existencia del método de pago.
+IF NOT EXISTS (
+    SELECT 1
+    FROM METODO_PAGO
+    WHERE Id_metodo_pago = @Id_metodo_pago
+)
+BEGIN
+    RAISERROR('El metodo de pago no existe.', 16, 1);
+    RETURN;
+END;
+
     -- 1. Validar existencia de producto y obtener precio de lista
-    SELECT @PrecioLista = Precio_lista 
+SELECT @PrecioLista = Precio_lista 
     FROM PRODUCTO 
     WHERE Id_producto = @Id_producto;
 
@@ -49,6 +79,8 @@ BEGIN
     SET @PrecioUnitarioFinal = @PrecioLista * (1.00 - @PorcentajeDescuento);
     SET @Subtotal = @PrecioUnitarioFinal * @Cantidad;
 
+	BEGIN TRY
+    BEGIN TRANSACTION;
     -- 4. Registrar la cabecera de la Venta
     INSERT INTO VENTA (Fecha, Modalidad, Total, Id_cliente, Id_metodo_pago)
     VALUES (GETDATE(), @Modalidad, @Subtotal, @Id_cliente, @Id_metodo_pago);
@@ -63,8 +95,27 @@ BEGIN
     UPDATE INVENTARIO
     SET Garrafas_llenas = Garrafas_llenas - @Cantidad,
         Garrafas_vacias = Garrafas_vacias + @Cantidad
-    WHERE Id_producto = @Id_producto;
+    WHERE Id_producto = @Id_producto
+	AND Garrafas_llenas >= @Cantidad;
+	
+	-- Verificar que se haya actualizado el inventario.
+	IF @@ROWCOUNT <> 1
+	BEGIN
+    THROW 50006, 'Stock insuficiente o inventario inexistente.', 1;
+	END;
+
+        COMMIT TRANSACTION;
 
     PRINT 'Venta Nro ' + CAST(@Id_venta AS VARCHAR) + ' registrada con éxito.';
+
+END TRY
+BEGIN CATCH
+
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+
+    THROW;
+
+END CATCH;
 END;
 GO
